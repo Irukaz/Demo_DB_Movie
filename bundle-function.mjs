@@ -32,7 +32,8 @@ function buildSeed(){
  for(const c of data.complaints)c.created+=delta;
  return data;
 }
-const {createStore,createServer}=eval(brotliDecompressSync(Buffer.from(${JSON.stringify(packedBackend)},'base64')).toString());
+const backendFactory=new Function('http','createHmac','randomBytes','scryptSync','timingSafeEqual','SCHEMA','buildSeed','return '+brotliDecompressSync(Buffer.from(${JSON.stringify(packedBackend)},'base64')).toString());
+const {createStore,createServer}=backendFactory(http,createHmac,randomBytes,scryptSync,timingSafeEqual,SCHEMA,buildSeed);
 const packed=${JSON.stringify(packed)};
 const assets=new Map(JSON.parse(brotliDecompressSync(Buffer.from(packed,'base64')).toString()).map(([name,base64])=>[name,Buffer.from(base64,'base64')]));
 for(const [name,url] of ${JSON.stringify(imageRoutes)}) assets.set(name,url);
