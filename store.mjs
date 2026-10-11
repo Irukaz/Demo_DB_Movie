@@ -94,9 +94,9 @@ export async function createStore(pool) {
   };
   await transact(async c=>{
     const {rows}=await c.query('SELECT id,data,revision FROM demo_state WHERE id=1');
-    if(!rows.length) {const data=ledger(buildSeed(),null);data.relationalVersion=1;await project(c,data);await c.query('INSERT INTO demo_state(id,data) VALUES(1,$1)',[data]);}
+    if(!rows.length) {const data=ledger(buildSeed(),null);data.relationalVersion=2;await project(c,data);await c.query('INSERT INTO demo_state(id,data) VALUES(1,$1)',[data]);}
     else if((rows[0].data.catalogueVersion||1)<2){const data=rows[0].data,fixtures=buildSeed();for(const m of fixtures.movies)if(Number(m.id.slice(1))>=8&&!data.movies.some(x=>x.id===m.id))data.movies.push(m);for(const r of fixtures.rooms)if(Number(r.movie.slice(1))>=8&&!data.rooms.some(x=>x.id===r.id))data.rooms.push(r);data.catalogueVersion=2;await project(c,data);await c.query('UPDATE demo_state SET data=$1,revision=revision+1,updated_at=now() WHERE id=1',[data]);}
-    if(rows.length&&!rows[0].data.relationalVersion){const data=ledger(rows[0].data,null);data.relationalVersion=1;await project(c,data);await c.query('UPDATE demo_state SET data=$1,revision=revision+1,updated_at=now() WHERE id=1',[data]);}
+    if(rows.length&&(rows[0].data.relationalVersion||0)<2){const data=ledger(rows[0].data,null);data.relationalVersion=2;await project(c,data);await c.query('UPDATE demo_state SET data=$1,revision=revision+1,updated_at=now() WHERE id=1',[data]);}
   });
   async function read(c) {
     const {rows}=await c.query('SELECT data,revision FROM demo_state WHERE id=1 FOR UPDATE');
@@ -131,7 +131,7 @@ export async function createStore(pool) {
       const newBookings=data.bookings.filter(b=>!old.data.bookings.some(x=>x.id===b.id));
       const newComplaints=data.complaints.filter(x=>!old.data.complaints.some(c=>c.id===x.id));
       if(newBookings.length||newComplaints.length){if(!user)throw new DemoError('กรุณาเข้าสู่ระบบก่อนทำรายการ',401);for(const x of [...newBookings,...newComplaints])if(cleanEmail(x.email)!==user.email||cleanPhone(x.phone)!==user.phone)throw new DemoError('ข้อมูลผู้ทำรายการไม่ตรงกับบัญชีที่เข้าสู่ระบบ',403);}
-      const next=ledger(validate(data,old.data),old.data);next.relationalVersion=1;
+      const next=ledger(validate(data,old.data),old.data);next.relationalVersion=2;
       await project(c,next);
       await c.query('UPDATE demo_state SET data=$1,revision=revision+1,updated_at=now() WHERE id=1',[next]);
       return {data:next,revision:old.revision+1};
@@ -139,7 +139,7 @@ export async function createStore(pool) {
     reset:revision=>transact(async c=>{
       const old=await read(c);
       if(revision!==old.revision) throw new DemoError('ข้อมูลเปลี่ยนแล้ว กรุณาตรวจใหม่ก่อนรีเซ็ต',409);
-      const data=ledger(buildSeed(),null);data.relationalVersion=1;await project(c,data);
+      const data=ledger(buildSeed(),null);data.relationalVersion=2;await project(c,data);
       await c.query('UPDATE demo_state SET data=$1,revision=revision+1,updated_at=now() WHERE id=1',[data]);
       return {data,revision:old.revision+1};
     })

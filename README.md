@@ -6,14 +6,14 @@
 
 ## ฐานข้อมูลตามรายงาน
 
-ใช้ schema cinema67 และตารางธุรกิจ 15 ตารางตาม DDL: CUSTOMER, EMPLOYEE, THEATER, SEAT, MOVIE, SHOWTIME, SHOWTIME_SEAT, PROMOTION, CUSTOMER_ORDER, PAYMENT, TICKET, FOOD_DRINK_COUPON, COMPLAINT, BOOKING_OPERATION, COMPLAINT_OPERATION
+ใช้ schema cinema67 และตารางธุรกิจ 16 ตารางตาม DDL: CUSTOMER, BRANCH, EMPLOYEE, THEATER, SEAT, MOVIE, SHOWTIME, SHOWTIME_SEAT, PROMOTION, CUSTOMER_ORDER, PAYMENT, TICKET, FOOD_DRINK_COUPON, COMPLAINT, BOOKING_OPERATION, COMPLAINT_OPERATION
 
 หลังบ้าน → ฐานข้อมูล แสดงจำนวนแถว คอลัมน์ และข้อมูลจริงจาก PostgreSQL พร้อมดาวน์โหลด DDL
 CUSTOMER เก็บรหัสผ่านแบบ scrypt hash และบังคับอีเมล/เบอร์โทรไม่ซ้ำ การจองและเรื่องร้องเรียนใช้ข้อมูลจากบัญชีที่เข้าสู่ระบบ
 ประวัติงานพนักงานสร้างฝั่งเซิร์ฟเวอร์ การชำระ คูปอง QR อีเมลและบทบาทพนักงานยังเป็นการจำลอง
 
 schema.sql คือไฟล์ที่แอปใช้จริง รวม public.demo_state สำหรับข้อมูลประกอบ UI และ revision
-sql/cinema67_production_postgresql.sql เป็น DDL 15 ตารางธุรกิจ
+sql/cinema67_production_postgresql.sql เป็น DDL 16 ตารางธุรกิจ
 sql/cinema67_report_oracle.sql เป็นฉบับตามรายงาน
 sql/cinema67_report_postgresql.sql เป็นฉบับแปลงตรงตัวสำหรับศึกษา
 รายละเอียดการแมปอยู่ใน sql/README.md

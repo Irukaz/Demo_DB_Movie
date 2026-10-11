@@ -15,6 +15,8 @@ const posters={dune:'6izwz7rsy95ARzTR3poZ8H6c5pp.jpg',inception:'oYuLEt3zVCKq57q
 const imageRoutes=Object.entries(posters).map(([name,file])=>['assets/'+name+'.jpg','https://image.tmdb.org/t/p/w500/'+file]);
 imageRoutes.push(['assets/coach.jpg','https://cdn.majorcineplex.com/uploads/movie/5200/thumb_5200.jpg']);
 const relational=compact(readFileSync(new URL('./relational.mjs',import.meta.url),'utf8'));
+const backend=[relational,store,http,'return {createStore,createServer}'].join('\n').replace(/\bexport /g,'');
+const packedBackend=brotliCompressSync(Buffer.from(`(()=>{${backend}})()`)).toString('base64');
 const source=`import http from 'node:http';
 import { brotliDecompressSync } from 'node:zlib';
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
@@ -30,9 +32,7 @@ function buildSeed(){
  for(const c of data.complaints)c.created+=delta;
  return data;
 }
-${relational}
-${store}
-${http}
+const {createStore,createServer}=eval(brotliDecompressSync(Buffer.from(${JSON.stringify(packedBackend)},'base64')).toString());
 const packed=${JSON.stringify(packed)};
 const assets=new Map(JSON.parse(brotliDecompressSync(Buffer.from(packed,'base64')).toString()).map(([name,base64])=>[name,Buffer.from(base64,'base64')]));
 for(const [name,url] of ${JSON.stringify(imageRoutes)}) assets.set(name,url);
@@ -43,7 +43,7 @@ const store=await createStore(pool);
 const server=createServer(store,assets,Bun.env.APP_ORIGIN,Bun.env.AUTH_SECRET);
 server.listen(Number(Bun.env.PORT)||3000,'0.0.0.0',()=>console.log('Cinema67 ready with PostgreSQL'));
 `;
-// Keep executable backend code readable; compress only JSON fixture and asset data.
+// Bundle data and trusted backend source compactly to stay within Railway's function limit.
 const deploymentSource=source.replace(/\bexport /g,'').replace(/\n/g,'').replaceAll('authSecret','as').replaceAll('sessionUser','su').replaceAll('cookieName','cn').replaceAll('sameOrigin','so').replaceAll('publicCustomer','pc').replaceAll('passwordHash','ph').replaceAll('passwordMatches','pm').replaceAll('cleanEmail','ce').replaceAll('cleanPhone','cp');
 writeFileSync(new URL('./railway-function.ts',import.meta.url),deploymentSource);
 if(Buffer.byteLength(deploymentSource)>96*1024)throw new Error('Railway function exceeds 96 KB');
