@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f7f2">
+  <meta name="description" content="Cinema67 — เดโมจองตั๋วหนัง เลือกที่นั่งและรับตั๋วได้โดยไม่สมัครสมาชิก">
+  <title>Cinema67 · จองหนังให้เป็นเรื่องง่าย</title>
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('cinema67-theme')||'light'}catch{document.documentElement.dataset.theme='light'}</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header"><a href="#home" class="brand" aria-label="Cinema67 หน้าแรก"><span class="brand-mark">c<span>67</span></span><span>CINEMA<span class="brand-number">67</span></span></a><nav aria-label="เมนูหลัก"><a href="#home" data-nav="home">ภาพยนตร์</a><a href="#cinemas" data-nav="cinemas">โรงภาพยนตร์</a><a href="#promotions" data-nav="promotions">โปรโมชั่น</a></nav><div class="header-right"><span class="demo-badge"><i></i> PROJECT DEMO</span><a href="#lookup" class="lookup-link">ตั๋วของฉัน <span>↗</span></a></div><button id="mobile-nav" class="icon-button" aria-label="เปิดเมนู" aria-expanded="false">☰</button></header>
+  <main id="app"></main>
+  <footer><a href="#home" class="footer-brand">CINEMA67<span>มื้อหนังดี ๆ เริ่มที่นี่</span></a><div><a href="#contact">ติดต่อ / ร้องเรียน</a><a href="#staff">ส่วนพนักงาน</a><button id="guide-open" class="text-button">คู่มือนำเสนอ</button><button id="reset-open" class="text-button">เริ่ม Demo ใหม่</button></div><p>Demo ใช้ฐานข้อมูลร่วม · กรุณาใช้ข้อมูลติดต่อสมมติ · การชำระและ QR เป็นตัวอย่าง</p></footer>
+  <dialog id="dialog"><div id="dialog-content"></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="films.js" defer></script>
+  <script src="app.js" defer></script>
+  <script src="theme.js" defer></script>
+</body>
+</html>

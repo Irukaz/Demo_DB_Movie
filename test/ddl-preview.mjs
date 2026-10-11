@@ -1,0 +1,12 @@
+import { PGlite } from '@electric-sql/pglite';
+import { readFileSync, readdirSync } from 'node:fs';
+import { createStore } from '../store.mjs';
+import { createServer } from '../http.mjs';
+const pg=new PGlite();let tail=Promise.resolve();
+const query=(sql,args)=>args===undefined&&sql.includes(';')?pg.exec(sql).then(rows=>({rows})):pg.query(sql,args);
+const pool={query,connect:async()=>{const prev=tail;let release;tail=new Promise(r=>release=r);await prev;return {query,release};}};
+const store=await createStore(pool),assets=new Map();
+for(const f of ['index.html','app.js','films.js','theme.js','style.css'])assets.set(f,readFileSync(new URL('../dist/'+f,import.meta.url)));
+for(const f of readdirSync(new URL('../dist/assets/',import.meta.url)))assets.set('assets/'+f,readFileSync(new URL('../dist/assets/'+f,import.meta.url)));
+createServer(store,assets).listen(8871,'127.0.0.1',()=>console.log('Test preview ready on 8871'));
+

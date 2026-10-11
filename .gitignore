@@ -1,0 +1,9 @@
+node_modules/
+.env
+*.log
+
+.env.*
+!.env.example
+deployment.json
+railway-function.ts
+
