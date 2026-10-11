@@ -1,6 +1,6 @@
 # Cinema67: Railway + PostgreSQL
 
-เว็บ Demo จองหนัง ไม่มี Login มีหนัง 15 เรื่อง โปสเตอร์จริง โหมดสว่าง/มืด และสไลด์หนังแนะนำ
+เว็บ Demo จองหนังพร้อมสมัครสมาชิก/เข้าสู่ระบบ มีหนัง 15 เรื่อง โปสเตอร์จริง โหมดสว่าง/มืด และสไลด์หนังแนะนำ
 ออนไลน์: https://cinema67-production.up.railway.app
 หลังบ้าน: https://cinema67-production.up.railway.app/#staff
 
@@ -9,7 +9,7 @@
 ใช้ schema cinema67 และตารางธุรกิจ 15 ตารางตาม DDL: CUSTOMER, EMPLOYEE, THEATER, SEAT, MOVIE, SHOWTIME, SHOWTIME_SEAT, PROMOTION, CUSTOMER_ORDER, PAYMENT, TICKET, FOOD_DRINK_COUPON, COMPLAINT, BOOKING_OPERATION, COMPLAINT_OPERATION
 
 หลังบ้าน → ฐานข้อมูล แสดงจำนวนแถว คอลัมน์ และข้อมูลจริงจาก PostgreSQL พร้อมดาวน์โหลด DDL
-ชื่อ–นามสกุลรับจากแบบฟอร์มจอง ลูกค้าเดิมที่ไม่มีชื่อใช้ Guest / Demo
+CUSTOMER เก็บรหัสผ่านแบบ scrypt hash และบังคับอีเมล/เบอร์โทรไม่ซ้ำ การจองและเรื่องร้องเรียนใช้ข้อมูลจากบัญชีที่เข้าสู่ระบบ
 ประวัติงานพนักงานสร้างฝั่งเซิร์ฟเวอร์ การชำระ คูปอง QR อีเมลและบทบาทพนักงานยังเป็นการจำลอง
 
 schema.sql คือไฟล์ที่แอปใช้จริง รวม public.demo_state สำหรับข้อมูลประกอบ UI และ revision
@@ -27,10 +27,11 @@ PROMOTION เพิ่ม DISCOUNT_KIND และ MINIMUM_AMOUNT เพื่อ
 
 ## รันและ Deploy
 
-Node.js 22 ขึ้นไป; npm ci; ตั้ง DATABASE_URL ใน environment; npm start
+Node.js 22 ขึ้นไป; npm ci; ตั้ง DATABASE_URL และ AUTH_SECRET ใน environment; npm start
 Dockerfile และ railway.json พร้อม deploy จาก repository
-Repository เก็บโค้ดต้นฉบับที่อ่านได้ ไฟล์ build แบบบีบอัด railway-function.ts ไม่รวมใน Git; รันผ่าน Node.js หรือ Dockerfile ได้โดยตรง
+Railway Function ใช้ railway-function.ts; สร้างไฟล์ใหม่ด้วย node bundle-function.mjs
 อย่าใช้ prepare-frontend.mjs ทับไฟล์ที่แก้ล่าสุด เพราะเป็นตัวช่วยย้าย UI รุ่นเริ่มต้น
 npm test ทดสอบ PostgreSQL ผ่าน PGlite: concurrent booking, unique index, ราคา, ชำระ, ยกเลิก, หมดเวลา, migration, persistence, reset และ API
 
 ข้อมูลติดต่อควรเป็นข้อมูลสมมติ ทุกเครื่องอ่านข้อมูลชุดเดียวกัน และ reset มีผลร่วมกัน
+

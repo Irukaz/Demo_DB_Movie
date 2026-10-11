@@ -31,8 +31,10 @@ export function ledger(data,previous){
 export async function project(client,data){
  const rows=Object.fromEntries(TABLES.map(t=>[t,[]]));
  const add=(table,value)=>rows[table].push(value);
- const contacts=new Map();
- const contact=(email,phone,first,last)=>{const key=email.toLowerCase()+'|'+phone;if(!contacts.has(key))contacts.set(key,{customer_id:keyId(key),first_name:first||'Guest',last_name:last||'Demo',phone,email});if(first)contacts.get(key).first_name=first;if(last)contacts.get(key).last_name=last;return contacts.get(key).customer_id;};
+ const existing=(await client.query('SELECT customer_id,first_name,last_name,phone,email,password_hash FROM cinema67.customer')).rows;
+ const contacts=new Map(existing.map(c=>[c.email.toLowerCase(),c]));
+ const phones=new Map(existing.map(c=>[c.phone,c.email.toLowerCase()]));
+ const contact=(email,phone,first,last)=>{email=email.trim().toLowerCase();phone=phone.replace(/\D/g,'');let c=contacts.get(email),phoneOwner=phones.get(phone);if(!c&&phoneOwner)c=contacts.get(phoneOwner);if(!c){c={customer_id:keyId(email),first_name:first||'Guest',last_name:last||'Demo',phone,email,password_hash:null};contacts.set(email,c);phones.set(phone,email)}if(first&&!c.password_hash)c.first_name=first;if(last&&!c.password_hash)c.last_name=last;return c.customer_id;};
  const roles=['ฝ่ายจัดการ','การเงิน','Call Center','HR','พนักงานหน้าโรง'];
  roles.forEach((role,i)=>add('employee',{employee_id:i+1,name:'Demo '+role,email:'staff'+(i+1)+'@example.com',phone:null,role,status:'ACTIVE'}));
  for(const m of data.movies)add('movie',{movie_id:keyId(m.id),employee_id:1,title:m.name,duration_min:m.duration,release_date:null});
@@ -64,3 +66,4 @@ export async function project(client,data){
  }
 }
 export async function databaseView(client,table){if(table){const name=table.toLowerCase();if(!TABLES.includes(name))throw new Error('Unknown table');const rows=await client.query(`SELECT * FROM cinema67.${name} ORDER BY 1 LIMIT 25`);return {name:name.toUpperCase(),rows:rows.rows};}const tables=[];for(const name of TABLES){const count=await client.query(`SELECT count(*)::int AS n FROM cinema67.${name}`);const columns=await client.query("SELECT column_name,data_type FROM information_schema.columns WHERE table_schema='cinema67' AND table_name=$1 ORDER BY ordinal_position",[name]);tables.push({name:name.toUpperCase(),count:count.rows[0].n,columns:columns.rows});}return {schema:'cinema67',tables};}
+

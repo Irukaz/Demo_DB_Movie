@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { buildSeed } from './seed.mjs';
-import { project,ledger,databaseView } from './relational.mjs';
+import { project,ledger,databaseView,keyId } from './relational.mjs';
 
 export class DemoError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -13,6 +14,11 @@ const fixedSeats = b => {
   const h = [...`${b.movie}|${b.room}|${b.date}|${b.time}`].reduce((s,c)=>s+c.charCodeAt(0),0);
   return h%2===0 ? ['A3','A4','B6','D7'] : ['B3','B4','C7','D1'];
 };
+const cleanEmail=value=>String(value||'').trim().toLowerCase();
+const cleanPhone=value=>String(value||'').replace(/\D/g,'');
+const publicCustomer=row=>({id:String(row.customer_id),firstName:row.first_name,lastName:row.last_name,email:row.email,phone:row.phone});
+const passwordHash=password=>{const salt=randomBytes(16).toString('hex');return `scrypt$${salt}$${scryptSync(password,salt,64).toString('hex')}`;};
+const passwordMatches=(password,encoded)=>{try{const [,salt,hex]=encoded.split('$'),actual=scryptSync(password,salt,64),expected=Buffer.from(hex,'hex');return actual.length===expected.length&&timingSafeEqual(actual,expected)}catch{return false}};
 export function expire(data, now = Date.now()) {
   let changed = false;
   for (const b of data.bookings) if (b.status === 'pending' && b.deadline <= now) {
@@ -102,9 +108,29 @@ export async function createStore(pool) {
     get:()=>transact(read),
     database:table=>transact(c=>databaseView(c,table)),
     ddl:()=>readFileSync(new URL('./schema.sql',import.meta.url),'utf8'),
-    put:(data,revision)=>transact(async c=>{
+    register:input=>transact(async c=>{
+      const firstName=String(input.firstName||'').trim(),lastName=String(input.lastName||'').trim(),email=cleanEmail(input.email),phone=cleanPhone(input.phone),password=String(input.password||'');
+      if(!firstName||!lastName||firstName.length>100||lastName.length>100)fail('กรุณากรอกชื่อและนามสกุล');
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||!/^0\d{8,9}$/.test(phone))fail('กรุณาตรวจอีเมลและเบอร์โทร');
+      if(password.length<8||password.length>128)fail('รหัสผ่านต้องมี 8–128 ตัวอักษร');
+      const found=(await c.query('SELECT * FROM cinema67.customer WHERE lower(email)=$1 OR phone=$2 FOR UPDATE',[email,phone])).rows;
+      const sameEmail=found.find(x=>x.email.toLowerCase()===email),samePhone=found.find(x=>x.phone===phone);
+      if(sameEmail?.password_hash)throw new DemoError('อีเมลนี้มีบัญชีแล้ว กรุณาเข้าสู่ระบบ',409);
+      if(samePhone&&samePhone.email.toLowerCase()!==email)throw new DemoError('เบอร์โทรนี้ถูกใช้กับบัญชีอื่นแล้ว',409);
+      if(sameEmail&&sameEmail.phone!==phone)throw new DemoError('อีเมลนี้ถูกใช้กับเบอร์โทรอื่นแล้ว',409);
+      let row;
+      if(sameEmail){row=(await c.query('UPDATE cinema67.customer SET first_name=$1,last_name=$2,password_hash=$3 WHERE customer_id=$4 RETURNING *',[firstName,lastName,passwordHash(password),sameEmail.customer_id])).rows[0];}
+      else{row=(await c.query('INSERT INTO cinema67.customer(customer_id,first_name,last_name,email,phone,password_hash) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[keyId(email),firstName,lastName,email,phone,passwordHash(password)])).rows[0];}
+      return publicCustomer(row);
+    }),
+    authenticate:(email,password)=>transact(async c=>{const row=(await c.query('SELECT * FROM cinema67.customer WHERE lower(email)=$1',[cleanEmail(email)])).rows[0];if(!row?.password_hash||!passwordMatches(String(password||''),row.password_hash))throw new DemoError('อีเมลหรือรหัสผ่านไม่ถูกต้อง',401);return publicCustomer(row);}),
+    customer:id=>transact(async c=>{const row=(await c.query('SELECT * FROM cinema67.customer WHERE customer_id=$1',[id])).rows[0];return row?publicCustomer(row):null;}),
+    put:(data,revision,user)=>transact(async c=>{
       const old=await read(c);
       if(revision!==old.revision) throw new DemoError('ข้อมูลมีการเปลี่ยนแปลง โหลดล่าสุดแล้ว กรุณาทำรายการอีกครั้ง',409);
+      const newBookings=data.bookings.filter(b=>!old.data.bookings.some(x=>x.id===b.id));
+      const newComplaints=data.complaints.filter(x=>!old.data.complaints.some(c=>c.id===x.id));
+      if(newBookings.length||newComplaints.length){if(!user)throw new DemoError('กรุณาเข้าสู่ระบบก่อนทำรายการ',401);for(const x of [...newBookings,...newComplaints])if(cleanEmail(x.email)!==user.email||cleanPhone(x.phone)!==user.phone)throw new DemoError('ข้อมูลผู้ทำรายการไม่ตรงกับบัญชีที่เข้าสู่ระบบ',403);}
       const next=ledger(validate(data,old.data),old.data);next.relationalVersion=1;
       await project(c,next);
       await c.query('UPDATE demo_state SET data=$1,revision=revision+1,updated_at=now() WHERE id=1',[next]);
@@ -119,3 +145,4 @@ export async function createStore(pool) {
     })
   };
 }
+
