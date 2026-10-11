@@ -60,6 +60,7 @@ test('shared PostgreSQL booking transactions, validation, cancellation, expiry a
   assert.equal((await secondUpgrade.get()).revision,migrated.revision);
   state=migrated;
   const dbView=await restarted.database();assert.equal(dbView.tables.length,15);assert.equal(dbView.tables.find(t=>t.name==='MOVIE').count,15);
+  assert.equal('password_hash' in (await restarted.database('customer')).rows[0],false);
   const reset=await restarted.reset(state.revision);assert.equal(reset.data.bookings.length,buildSeed().bookings.length);
   const server=createServer(store,new Map([['index.html',Buffer.from('<html>Demo</html>')]]),undefined,'test-auth-secret');
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const url=`http://127.0.0.1:${server.address().port}`;
