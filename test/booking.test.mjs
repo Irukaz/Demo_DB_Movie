@@ -59,10 +59,13 @@ test('shared PostgreSQL booking transactions, validation, cancellation, expiry a
   const secondUpgrade=await createStore(pool);
   assert.equal((await secondUpgrade.get()).revision,migrated.revision);
   state=migrated;
-  const dbView=await restarted.database();assert.equal(dbView.tables.length,16);assert.equal(dbView.tables.find(t=>t.name==='BRANCH').count,3);assert.equal(dbView.tables.find(t=>t.name==='MOVIE').count,15);
+  const dbView=await restarted.database();assert.equal(dbView.tables.length,17);assert.equal(dbView.tables.find(t=>t.name==='BRANCH').count,3);assert.equal(dbView.tables.find(t=>t.name==='MOVIE').count,15);
   assert.deepEqual(dbView.tables.find(t=>t.name==='BRANCH').columns.map(c=>c.column_name),['branch_id','branch_name','location']);
   assert.ok(dbView.tables.find(t=>t.name==='EMPLOYEE').columns.some(c=>c.column_name==='branch_id'));
   assert.deepEqual(dbView.tables.find(t=>t.name==='MOVIE').columns.map(c=>c.column_name),['movie_id','employee_id','movie_name','movie_description']);
+  assert.ok(dbView.tables.find(t=>t.name==='PROMOTION').columns.some(c=>c.column_name==='discount_kind'));
+  assert.ok(dbView.tables.find(t=>t.name==='PROMOTION').columns.some(c=>c.column_name==='minimum_amount'));
+  assert.ok(dbView.tables.find(t=>t.name==='BOOKING_HISTORY').count>dbView.tables.find(t=>t.name==='BOOKING_OPERATION').count);
   assert.equal('password_hash' in (await restarted.database('customer')).rows[0],false);
   const reset=await restarted.reset(state.revision);assert.equal(reset.data.bookings.length,buildSeed().bookings.length);
   const server=createServer(store,new Map([['index.html',Buffer.from('<html>Demo</html>')]]),undefined,'test-auth-secret');

@@ -1,10 +1,10 @@
 # DDL and the deployed Cinema67 demo
 
-The PostgreSQL production DDL uses schema cinema67 and 16 business tables from the current ER diagram. Each write updates the relational tables and public.demo_state in one transaction. Existing plural tables from the earlier demo are retained as legacy data and are no longer written by this version.
+The PostgreSQL production DDL uses schema cinema67 and 17 business tables from the current ER diagram. Each write updates the relational tables and public.demo_state in one transaction. Existing plural tables from the earlier demo are retained as legacy data and are no longer written by this version.
 
 The original report script is preserved as cinema67_report_oracle.sql. cinema67_report_postgresql.sql is a literal PostgreSQL conversion for study. cinema67_production_postgresql.sql is the business DDL deployed by the app.
 
-Production adjustments: PASSWORD_HASH supports customer login. TICKET_STATUS and an active-ticket partial unique index preserve cancelled/changed tickets while allowing seats to be booked again. BRANCH links employees and theaters as shown in the current diagram.
+Production adjustments: PASSWORD_HASH supports customer login. TICKET_STATUS and an active-ticket partial unique index preserve cancelled/changed tickets while allowing seats to be booked again. BRANCH links employees and theaters. BOOKING_OPERATION records employee changes to showtimes, while BOOKING_HISTORY is generated automatically by the system for every ticket event. PROMOTION retains DISCOUNT_KIND and MINIMUM_AMOUNT for percentage and fixed-value offers.
 
 The demo also retains an implementation snapshot (public.demo_state) for branch labels, posters, products, request forms and UI revision control; these details are not fields in the report DDL. The database inspector reads real SQL rows, counts and columns, rather than displaying the snapshot.
 

@@ -1,5 +1,5 @@
-// Sixteen business tables from the ER diagram. Snapshot fields support the demo UI.
-export const TABLES=['customer','branch','employee','theater','seat','movie','showtime','showtime_seat','promotion','customer_order','payment','ticket','food_drink_coupon','complaint','booking_operation','complaint_operation'];
+// Seventeen business tables from the ER diagram. Snapshot fields support the demo UI.
+export const TABLES=['customer','branch','employee','theater','seat','movie','showtime','showtime_seat','promotion','customer_order','payment','ticket','food_drink_coupon','complaint','booking_operation','booking_history','complaint_operation'];
 export const keyId=value=>{let n=2166136261;for(const c of String(value))n=Math.imul(n^c.charCodeAt(0),16777619)>>>0;return n+1;};
 const stamp=n=>new Date(n).toISOString().replace('T',' ').slice(0,23);
 const day=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Bangkok'});
@@ -40,7 +40,7 @@ export async function project(client,data){
  roles.forEach((role,i)=>add('employee',{employee_id:i+1,branch_id:keyId(data.cinemas[i%data.cinemas.length].id),name:'Demo '+role,email:'staff'+(i+1)+'@example.com',phone:null,role,status:'ACTIVE'}));
  for(const m of data.movies)add('movie',{movie_id:keyId(m.id),employee_id:1,movie_name:m.name,movie_description:m.description});
  for(const r of data.rooms){add('theater',{theater_id:keyId(r.id),branch_id:keyId(r.cinema),theater_name:r.name,theater_type:r.type,theater_number:r.name.replace('Theater ','T')});for(const row of ['A','B','C','D','E','F'])for(let col=1;col<=8;col++){const s=row+col;add('seat',{seat_id:seatId(r.id,s),theater_id:keyId(r.id),seat_number:s,zone_type:/^[EF]/.test(s)?'PREMIUM':'STANDARD',base_price:/^[EF]/.test(s)?250:180});}}
- for(const p of data.promos)add('promotion',{promotion_id:keyId(p.id),employee_id:1,promotion_name:p.name,promotion_code:p.code,discount_rate:p.value,is_deleted:p.active?0:1});
+ for(const p of data.promos)add('promotion',{promotion_id:keyId(p.id),employee_id:1,promotion_name:p.name,promotion_code:p.code,discount_kind:p.kind,minimum_amount:p.min,discount_rate:p.value,is_deleted:p.active?0:1});
  const shows=new Map();
  const addShow=b=>{const key=showKey(b);shows.set(key,{key,room:b.room,movie:b.movie,date:b.date,time:b.time});};
  for(const r of data.rooms)if(r.active&&data.movies.some(m=>m.id===r.movie&&m.active&&!m.upcoming))for(let i=0;i<7;i++){const date=new Date(day()+'T12:00:00+07:00');date.setDate(date.getDate()+i);for(const time of data.times)addShow({room:r.id,movie:r.movie,date:date.toLocaleDateString('en-CA',{timeZone:'Asia/Bangkok'}),time});}
@@ -59,9 +59,12 @@ export async function project(client,data){
  for(const t of data.ticketLedger||[]){const b=data.bookings.find(b=>b.id===t.booking),promo=data.promos.find(p=>p.code===b.promo);add('ticket',{ticket_id:keyId(t.id),order_id:keyId(t.booking),showtime_seat_id:slotId(showKey(t),t.seat),promotion_id:promo?keyId(promo.id):null,ticket_code:'TCK-'+keyId(t.id),book_datetime:stamp(t.created),ticket_status:t.status});}
  for(const c of data.complaints)add('complaint',{problem_id:keyId(c.id),customer_id:contact(c.email,c.phone),problem_detail:c.detail,status:({pending:'PENDING',working:'WORKING',resolved:'RESOLVED'}[c.status])});
  rows.customer=[...contacts.values()];
- for(const e of data.auditEvents||[])if(e.kind==='booking')add('booking_operation',{operation_id:e.id,employee_id:e.employee,ticket_id:keyId(e.ticket),operation_type:e.type,operation_datetime:stamp(e.at)});else add('complaint_operation',{operation_id:e.id,employee_id:e.employee,problem_id:keyId(e.problem),operation_type:e.type,operation_datetime:stamp(e.at)});
+ for(const e of data.auditEvents||[])if(e.kind==='booking'){
+  add('booking_history',{operation_id:e.id,ticket_id:keyId(e.ticket),operation_type:e.type,operation_datetime:stamp(e.at),operation_info:'บันทึกอัตโนมัติโดยระบบ'});
+  if(e.type==='SHOWTIME_CHANGED'||e.type.startsWith('CHANGE_REQUEST_'))add('booking_operation',{operation_id:e.id,employee_id:e.employee,ticket_id:keyId(e.ticket),operation_type:e.type,operation_datetime:stamp(e.at)});
+ }else add('complaint_operation',{operation_id:e.id,employee_id:e.employee,problem_id:keyId(e.problem),operation_type:e.type,operation_datetime:stamp(e.at)});
  // Fixed table/column allowlist only. All values remain parameterized.
- await client.query('DELETE FROM cinema67.booking_operation;DELETE FROM cinema67.complaint_operation;DELETE FROM cinema67.food_drink_coupon;DELETE FROM cinema67.ticket;DELETE FROM cinema67.payment;DELETE FROM cinema67.customer_order;DELETE FROM cinema67.complaint;DELETE FROM cinema67.showtime_seat;DELETE FROM cinema67.showtime;DELETE FROM cinema67.seat;DELETE FROM cinema67.theater;DELETE FROM cinema67.movie;DELETE FROM cinema67.promotion;DELETE FROM cinema67.customer;DELETE FROM cinema67.employee;DELETE FROM cinema67.branch;');
+ await client.query('DELETE FROM cinema67.booking_operation;DELETE FROM cinema67.booking_history;DELETE FROM cinema67.complaint_operation;DELETE FROM cinema67.food_drink_coupon;DELETE FROM cinema67.ticket;DELETE FROM cinema67.payment;DELETE FROM cinema67.customer_order;DELETE FROM cinema67.complaint;DELETE FROM cinema67.showtime_seat;DELETE FROM cinema67.showtime;DELETE FROM cinema67.seat;DELETE FROM cinema67.theater;DELETE FROM cinema67.movie;DELETE FROM cinema67.promotion;DELETE FROM cinema67.customer;DELETE FROM cinema67.employee;DELETE FROM cinema67.branch;');
  for(const table of TABLES){if(!rows[table].length)continue;const columns=Object.keys(rows[table][0]);const definitions=columns.map(c=>c+' '+(c.endsWith('_id')?'bigint':c.includes('datetime')||c==='order_date'?'timestamp':c==='show_date'||c==='release_date'?'date':c==='is_deleted'||c==='duration_min'?'integer':['amount','total_amount','base_price','discount_rate','minimum_amount'].includes(c)?'numeric':'text')).join(',');
   await client.query(`INSERT INTO cinema67.${table} (${columns.join(',')}) SELECT ${columns.join(',')} FROM jsonb_to_recordset($1::jsonb) AS x(${definitions})`,[JSON.stringify(rows[table])]);
  }
