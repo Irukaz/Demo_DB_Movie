@@ -18,7 +18,7 @@ const source=`import http from 'node:http';
 import { brotliDecompressSync } from 'node:zlib';
 import { Pool } from 'pg@8.16.3';
 const SCHEMA=${JSON.stringify(schema)};
-const seedFixture=${JSON.stringify(seed)};
+const seedFixture=JSON.parse(brotliDecompressSync(Buffer.from(${JSON.stringify(brotliCompressSync(Buffer.from(JSON.stringify(seed))).toString('base64'))},'base64')).toString());
 function buildSeed(){
  const data=structuredClone(seedFixture), delta=Date.now()-${base};
  const dayOffset=Math.floor((Date.now()+25200000)/86400000)-Math.floor((${base}+25200000)/86400000);
@@ -41,9 +41,8 @@ const store=await createStore(pool);
 const server=createServer(store,assets,Bun.env.APP_ORIGIN);
 server.listen(Number(Bun.env.PORT)||3000,'0.0.0.0',()=>console.log('Cinema67 ready with PostgreSQL'));
 `;
-const body=source.slice(source.indexOf('const SCHEMA=')).replace(/\bexport /g,'');
-const compressed=brotliCompressSync(Buffer.from(body)).toString('base64');
-const deploymentSource="import http from 'node:http';\nimport {brotliDecompressSync} from 'node:zlib';\nimport {Pool} from 'pg@8.16.3';\nconst AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;\nawait new AsyncFunction('Bun','Pool','http','brotliDecompressSync',brotliDecompressSync(Buffer.from("+JSON.stringify(compressed)+",'base64')).toString())(Bun,Pool,http,brotliDecompressSync);\n";
+// Keep executable backend code readable; compress only JSON fixture and asset data.
+const deploymentSource=source.replace(/\bexport /g,'');
 writeFileSync(new URL('./railway-function.ts',import.meta.url),deploymentSource);
 if(Buffer.byteLength(deploymentSource)>96*1024)throw new Error('Railway function exceeds 96 KB');
 console.log(JSON.stringify({bytes:Buffer.byteLength(deploymentSource),assets:entries.length}));
